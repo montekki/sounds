@@ -1,0 +1,8 @@
+/target
+
+# Local model and audio artifacts.
+ggml-*.bin
+*.wav
+*.mp3
+*.flac
+*.m4a

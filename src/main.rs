@@ -6,12 +6,14 @@ use cpal::{
     FromSample, Sample, SampleFormat, SizedSample, Stream, StreamConfig,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
+use env_logger::Env;
+use log::{debug, warn};
 use wavers::Wav;
 
 mod audio;
-mod candle_whisper;
 mod capture;
 mod detect;
+mod whisper_backend;
 
 #[derive(Subcommand)]
 enum Command {
@@ -30,6 +32,9 @@ struct Args {
 }
 
 fn main() -> Result<()> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    whisper_rs::install_logging_hooks();
+
     let args = Args::parse();
     match args.subcommand {
         Command::Play { wav_file } => run_play(wav_file),
@@ -71,7 +76,7 @@ fn run_play(wav_file: PathBuf) -> Result<()> {
     let play_time = Duration::from_secs_f64(
         samples.len() as f64 / output_sample_rate as f64 / output_channels as f64,
     );
-    eprintln!(
+    debug!(
         "playing on {device_id}: {output_channels} channels, {output_sample_rate} Hz, {sample_format}"
     );
     let stream = match sample_format {
@@ -106,7 +111,7 @@ where
                     sample_index += 1;
                 }
             },
-            |error| eprintln!("stream error: {error}"),
+            |error| warn!("stream error: {error}"),
             None,
         )
         .context("failed to build output stream")

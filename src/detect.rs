@@ -2,14 +2,15 @@ use std::path::Path;
 
 use crate::{
     audio::{audio_stats, resample_mono, write_wav_i16},
-    candle_whisper::CandleWhisper,
     capture::AudioCapture,
+    whisper_backend::WhisperTranscriber,
 };
 
 use anyhow::{Context, Result};
+use log::{debug, info, warn};
 
 const WHISPER_SAMPLE_RATE: u32 = 16_000;
-const TRANSCRIBE_CHUNK_SECONDS: usize = 20;
+const TRANSCRIBE_CHUNK_SECONDS: usize = 10;
 const MAX_LIVE_GAIN: f32 = 3.0;
 const LIVE_TARGET_PEAK: f32 = 0.5;
 const MIN_TRANSCRIBE_RMS: f32 = 0.006;
@@ -20,7 +21,7 @@ pub(crate) fn run_detect() -> Result<()> {
 
 struct DetectionSession {
     capture: AudioCapture,
-    transcriber: CandleWhisper,
+    transcriber: WhisperTranscriber,
     pending: Vec<f32>,
     sample_rate: u32,
     chunk_samples: usize,
@@ -33,12 +34,12 @@ impl DetectionSession {
         let sample_rate = capture.sample_rate();
         let channels = capture.channels();
         let sample_format = capture.sample_format();
-        eprintln!(
+        debug!(
             "using input config: format={sample_format}, sample_rate={sample_rate}, channels={channels}"
         );
 
-        eprintln!("input sample rate {sample_rate} Hz");
-        let transcriber = CandleWhisper::load().context("failed to load Candle Whisper model")?;
+        debug!("input sample rate {sample_rate} Hz");
+        let transcriber = WhisperTranscriber::load().context("failed to load whisper.cpp model")?;
         let chunk_samples = sample_rate as usize * TRANSCRIBE_CHUNK_SECONDS;
 
         Ok(Self {
@@ -65,6 +66,10 @@ impl DetectionSession {
     fn transcribe_pending_chunks(&mut self) {
         while self.pending.len() >= self.chunk_samples {
             let chunk = self.pending.drain(..self.chunk_samples).collect::<Vec<_>>();
+            let queued_seconds = self.pending.len() as f64 / self.sample_rate as f64;
+            if queued_seconds >= 1.0 {
+                debug!("audio backlog: {queued_seconds:.1}s queued");
+            }
             let debug_wav_path = self.next_debug_wav_path();
             self.transcribe_utterance(&chunk, debug_wav_path);
         }
@@ -85,7 +90,7 @@ impl DetectionSession {
         }
 
         let (rms, peak) = audio_stats(utterance);
-        eprintln!(
+        debug!(
             "chunk: {} samples @ {} Hz, rms={rms:.6}, peak={peak:.6}",
             utterance.len(),
             self.sample_rate
@@ -94,21 +99,21 @@ impl DetectionSession {
         let mut audio = resample_mono(utterance, self.sample_rate, WHISPER_SAMPLE_RATE);
         normalize_live_chunk(&mut audio);
         let (normalized_rms, normalized_peak) = audio_stats(&audio);
-        eprintln!(
+        debug!(
             "resampled: {} samples @ {} Hz, rms={normalized_rms:.6}, peak={normalized_peak:.6}",
             audio.len(),
             WHISPER_SAMPLE_RATE
         );
 
         if normalized_rms < MIN_TRANSCRIBE_RMS {
-            eprintln!("skipping low-energy chunk, rms={normalized_rms:.6}");
+            debug!("skipping low-energy chunk, rms={normalized_rms:.6}");
             return;
         }
 
         if let Some(path) = debug_wav_path {
             match write_wav_i16(path, &audio, WHISPER_SAMPLE_RATE) {
-                Ok(()) => eprintln!("wrote debug capture to {}", path.display()),
-                Err(error) => eprintln!("failed to write debug capture: {error}"),
+                Ok(()) => debug!("wrote debug capture to {}", path.display()),
+                Err(error) => warn!("failed to write debug capture: {error}"),
             }
         }
 
@@ -116,12 +121,12 @@ impl DetectionSession {
             Ok(text) => {
                 let text = text.trim();
                 if !text.is_empty() {
-                    println!("{text}");
+                    info!("{text}");
                 } else {
-                    eprintln!("<empty transcription>");
+                    debug!("<empty transcription>");
                 }
             }
-            Err(error) => eprintln!("transcription error: {error}"),
+            Err(error) => warn!("transcription error: {error}"),
         }
     }
 }

@@ -7,7 +7,7 @@ The current CLI can:
 - play WAV files through the default output device,
 - capture microphone input with CPAL,
 - downmix/resample captured audio to 16 kHz mono,
-- transcribe live chunks with Candle Whisper.
+- transcribe live chunks with whisper.cpp through `whisper-rs`.
 
 This is not a polished app or library. The code is being iterated on to explore audio capture, preprocessing, and local Whisper inference behavior.
 

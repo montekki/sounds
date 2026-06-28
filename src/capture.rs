@@ -6,6 +6,7 @@ use cpal::{
     SampleFormat, Stream, StreamConfig,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
+use log::{debug, warn};
 
 pub(crate) struct AudioCapture {
     sample_rate: u32,
@@ -27,7 +28,7 @@ impl AudioCapture {
             .collect::<Vec<_>>();
 
         for config_range in &supported_configs {
-            println!(
+            debug!(
                 "{:?}: {}-{} Hz",
                 config_range.sample_format(),
                 config_range.min_sample_rate(),
@@ -58,7 +59,7 @@ impl AudioCapture {
             supported_config.max_sample_rate()
         };
 
-        println!("proceeding with config {supported_config:?} at {selected_sample_rate} Hz");
+        debug!("proceeding with config {supported_config:?} at {selected_sample_rate} Hz");
         let config: StreamConfig = supported_config
             .try_with_sample_rate(selected_sample_rate)
             .ok_or_else(|| anyhow!("failed to try with sample rate {selected_sample_rate}"))?
@@ -74,7 +75,7 @@ impl AudioCapture {
                     move |data: &[f32], _| {
                         let _ = tx.send(interleaved_to_mono_f32(data, channels));
                     },
-                    |error| eprintln!("input stream error: {error}"),
+                    |error| warn!("input stream error: {error}"),
                     None,
                 )
                 .context("failed to build input stream")?,

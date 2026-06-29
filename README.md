@@ -44,6 +44,12 @@ Use a different model with:
 cargo run --release -- detect --model ggml-small.bin
 ```
 
+On macOS with Metal, enable the optional Metal backend:
+
+```
+cargo run --release --features metal -- detect
+```
+
 ## How to run it
 
 ```

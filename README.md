@@ -15,6 +15,35 @@ This is not a polished app or library. The code is being iterated on to explore 
 
 Local model files and audio samples are intentionally ignored by git.
 
+## Models
+
+Live transcription uses whisper.cpp models through `whisper-rs`. Model files are not downloaded by the app and must exist locally.
+
+The default model path is:
+
+```
+ggml-medium.bin
+```
+
+Supported local model files are the whisper.cpp GGML models, for example:
+
+- `ggml-base.bin`
+- `ggml-small.bin`
+- `ggml-medium.bin`
+
+Download them from the whisper.cpp model repository:
+
+```
+curl -L -o ggml-small.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
+curl -L -o ggml-medium.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin
+```
+
+Use a different model with:
+
+```
+cargo run --release -- detect --model ggml-small.bin
+```
+
 ## How to run it
 
 ```

@@ -21,7 +21,10 @@ enum Command {
         #[arg(short)]
         wav_file: PathBuf,
     },
-    Detect {},
+    Detect {
+        #[arg(short, long, default_value = "ggml-medium.bin")]
+        model: PathBuf,
+    },
 }
 
 #[derive(Parser)]
@@ -38,7 +41,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     match args.subcommand {
         Command::Play { wav_file } => run_play(wav_file),
-        Command::Detect {} => detect::run_detect(),
+        Command::Detect { model } => detect::run_detect(model),
     }
 }
 

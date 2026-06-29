@@ -1,19 +1,23 @@
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use log::debug;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
-
-const MODEL_PATH: &str = "ggml-base.bin";
 
 pub(crate) struct WhisperTranscriber {
     context: WhisperContext,
 }
 
 impl WhisperTranscriber {
-    pub(crate) fn load() -> Result<Self> {
-        debug!("loading whisper.cpp model {MODEL_PATH}");
-        let context =
-            WhisperContext::new_with_params(MODEL_PATH, WhisperContextParameters::default())
-                .context("failed to load whisper.cpp context")?;
+    pub(crate) fn load(model_path: &Path) -> Result<Self> {
+        debug!("loading whisper.cpp model {}", model_path.display());
+        let context = WhisperContext::new_with_params(
+            model_path
+                .to_str()
+                .context("model path is not valid UTF-8")?,
+            WhisperContextParameters::default(),
+        )
+        .context("failed to load whisper.cpp context")?;
 
         Ok(Self { context })
     }
